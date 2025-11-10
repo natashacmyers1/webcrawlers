@@ -8,9 +8,7 @@ Run the following docker build commands in your terminal:
 To build the docker container itself
 `docker build -t webcrawler .`                    
 
-To run the docker container in interactive mode
-`docker run -it --rm webcrawler sh`
+To run the docker crawler in the container against https://crawlme.monzo.com
+`docker run --rm webcrawler crawl`
 
-To run the crawler against https://crawlme.monzo.com
-`python webcrawler/crawler.py`
 NB: if you want to run the crawler on a different site, simply update the site name in crawler.py
