@@ -6,7 +6,9 @@ import threading
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 from urllib import robotparser
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urljoin
+from typing import Optional
+
 
 START_URL = "https://crawlme.monzo.com/"
 REQUEST_USER_AGENT = "NatashaMyers/1.0 (natashacmyers@gmail.com)"
@@ -17,6 +19,7 @@ urls_to_visit.put(START_URL)
 urls_processed = set()  
 urls_discovered = set() 
 
+STOP_EVENT = threading.Event()
 processed_lock = threading.Lock()
 discovered_lock = threading.Lock()
 pages_count_lock = threading.Lock() 
@@ -82,7 +85,6 @@ def fetch_page_links(page_url: str):
     return soup.select("a[href]")
 
 def wait():
-    """Simple shared delay so we don't hammer the host."""
     global last_request_time
     current_time = time.monotonic()
     time_since_last_request = current_time - last_request_time
@@ -92,16 +94,9 @@ def wait():
     last_request_time = time.monotonic()
 
 def to_absolute_url(parent_url: str, href_value: str) -> str:
-
-    """Convert relative links to absolute URLs; keep absolute URLs as-is."""
-    if not href_value.startswith("https"):
-        absolute_url = requests.compat.urljoin(parent_url, href_value)
-    else:
-        absolute_url = href_value
-    return absolute_url
+    return urljoin(parent_url, href_value) 
 
 def should_enqueue_url(url: str) -> bool:
-    """Only enqueue URLs within scope that we haven't discovered or processed."""
     return url.startswith(START_URL) and (url not in urls_processed) and (url not in urls_discovered)
 
 def print_crawl_results():
@@ -110,14 +105,14 @@ def print_crawl_results():
     for entry in printable_format_pages:
         for page_url, link_elements in entry.items():
             print(f"\n{page_url}")
-            for link_el in link_elements:
-                print(f"  - {link_el['href']}")
+            for link_element in link_elements:
+                print(f"  - {link_element['href']}")
     if failed_urls:
         print("\nThese pages could not be fetched:")
         for entry in failed_urls:
             print(f"  - {entry['url']}  ({entry['error']})")
 
-def crawl_worker(max_pages):
+def crawl_worker(max_pages: Optional[int] = None):
     global pages_crawled
     if not is_allowed_by_robots(START_URL):
         print("This subdomain does not allow webcrawlers")
@@ -129,10 +124,15 @@ def crawl_worker(max_pages):
         except queue.Empty:
             return
 
+        if STOP_EVENT.is_set():
+            urls_to_visit.task_done()
+            continue
+
         with pages_count_lock:
-            if pages_crawled >= max_pages:
+             if max_pages is not None and pages_crawled >= max_pages:
+                STOP_EVENT.set()
                 urls_to_visit.task_done()
-                return
+                continue
 
         with processed_lock:
             if page_url in urls_processed:
@@ -148,13 +148,16 @@ def crawl_worker(max_pages):
             link_elements = fetch_page_links(page_url)
         except Exception as e:
             with failed_urls_lock:
-                failed_urls.append({"url": current_url, "error": str(e)})
+                failed_urls.append({"url": page_url, "error": str(e)})
             urls_to_visit.task_done()
             continue
 
         try:
             with pages_count_lock:
                 pages_crawled += 1
+                if max_pages is not None and pages_crawled >= max_pages:
+                    STOP_EVENT.set()
+
             printable_format_pages.append({page_url: link_elements})
 
             for link_element in link_elements:
@@ -163,14 +166,15 @@ def crawl_worker(max_pages):
                     continue
                 absolute_url = to_absolute_url(page_parent_url, href_value)
                 with processed_lock, discovered_lock:
-                    if should_enqueue_url(absolute_url):
+                    if not STOP_EVENT.is_set() and should_enqueue_url(absolute_url):
                         urls_to_visit.put(absolute_url)
+                        print("enqueued:", absolute_url)
                         urls_discovered.add(absolute_url)  
         finally:
             urls_to_visit.task_done()
 
 
-def main(max_pages: int = 100, worker_count: int = 10): 
+def main(max_pages: int = None, worker_count: int = 3):
     worker_threads = []
     for i in range(worker_count):
         thread = threading.Thread(
@@ -179,16 +183,13 @@ def main(max_pages: int = 100, worker_count: int = 10):
             daemon=True 
         )
         worker_threads.append(thread)
-    
     for thread in worker_threads:
         thread.start()
-
     urls_to_visit.join() 
-
     for thread in worker_threads:
         thread.join(timeout=0.1) 
 
     print_crawl_results()
 
-if __name__ == "__main__":
-    main(max_pages=100, worker_count=10)
+
+main(max_pages=10, worker_count=3)
