@@ -1,6 +1,5 @@
 from bs4 import BeautifulSoup
 import requests
-import time
 import queue
 import threading
 from requests.adapters import HTTPAdapter
@@ -8,6 +7,8 @@ from urllib3.util.retry import Retry
 from urllib import robotparser
 from urllib.parse import urlparse, urljoin
 from typing import Optional
+import json, os, time
+
 
 
 START_URL = "https://crawlme.monzo.com/"
@@ -98,6 +99,34 @@ def to_absolute_url(parent_url: str, href_value: str) -> str:
 
 def should_enqueue_url(url: str) -> bool:
     return url.startswith(START_URL) and (url not in urls_processed) and (url not in urls_discovered)
+
+def save_results_to_file(path="crawl_output.json"):
+    abs_path = os.path.abspath(path)
+    print(f"[save] cwd={os.getcwd()}")
+    print(f"[save] writing to {abs_path}")
+
+    pages = []
+    for entry in printable_format_pages:
+        for page_url, link_elements in entry.items():
+            pages.append({
+                "url": page_url,
+                "links": [a.get("href") for a in link_elements],
+            })
+
+    payload = {
+        "start_url": START_URL,
+        "pages_crawled": pages_crawled,
+        "pages": pages,
+        "failures": failed_urls,
+        "generated_at": time.time(),
+    }
+
+    try:
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(payload, f, ensure_ascii=False, indent=2)
+        print(f"[save] OK → {abs_path}")
+    except Exception as e:
+        print(f"[save] ERROR: {e!r}")
 
 def print_crawl_results():
     print("Here is a list of all the sites within the subdomain https://crawlme.monzo.com/ "
@@ -190,6 +219,9 @@ def main(max_pages: int = None, worker_count: int = 3):
         thread.join(timeout=0.1) 
 
     print_crawl_results()
+    output_path = os.getenv("OUTPUT_PATH", "crawl_output.json")
+    save_results_to_file(output_path)
 
 
-main(max_pages=10, worker_count=3)
+if __name__ == "__main__":
+    main(max_pages=10, worker_count=3)

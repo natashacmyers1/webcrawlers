@@ -11,7 +11,7 @@ def _crawl():
 
 def main(argv=None):
     argv = sys.argv[1:] if argv is None else argv
-    cmd = argv[0] if argv else "crawl"  # default to crawling
+    cmd = argv[0] if argv else "crawl"
     if cmd == "serve":
         _serve()
     elif cmd == "crawl":
