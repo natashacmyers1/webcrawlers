@@ -143,15 +143,16 @@ def print_crawl_results():
 
 def crawl_worker(max_pages: Optional[int] = None):
     global pages_crawled
-    if not is_allowed_by_robots(START_URL):
-        print("This subdomain does not allow webcrawlers")
-        return
 
     while True:
         try:
             page_url = urls_to_visit.get(timeout=1)
         except queue.Empty:
             return
+
+        if not is_allowed_by_robots(page_url):
+            print("This subdomain does not allow webcrawlers")
+            continue
 
         if STOP_EVENT.is_set():
             urls_to_visit.task_done()
@@ -197,7 +198,6 @@ def crawl_worker(max_pages: Optional[int] = None):
                 with processed_lock, discovered_lock:
                     if not STOP_EVENT.is_set() and should_enqueue_url(absolute_url):
                         urls_to_visit.put(absolute_url)
-                        print("enqueued:", absolute_url)
                         urls_discovered.add(absolute_url)  
         finally:
             urls_to_visit.task_done()
@@ -224,4 +224,4 @@ def main(max_pages: int = None, worker_count: int = 3):
 
 
 if __name__ == "__main__":
-    main(max_pages=10, worker_count=3)
+    main()
