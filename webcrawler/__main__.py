@@ -1,4 +1,3 @@
-import sys
 
 def _crawl():
     from webcrawler.crawler import main as crawl_main

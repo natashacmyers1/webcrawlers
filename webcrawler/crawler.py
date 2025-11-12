@@ -78,7 +78,6 @@ def is_allowed_by_robots(url: str) -> bool:
     return ROBOTS_RULES.can_fetch(REQUEST_USER_AGENT, url)
 
 def fetch_page_links(page_url: str):
-    """Fetch a page and return its <a href> elements."""
     session = get_thread_session()
     response = session.get(page_url, timeout=20)  
     response.raise_for_status() 
@@ -100,17 +99,16 @@ def to_absolute_url(parent_url: str, href_value: str) -> str:
 def should_enqueue_url(url: str) -> bool:
     return url.startswith(START_URL) and (url not in urls_processed) and (url not in urls_discovered)
 
-def save_results_to_file(path="crawl_output.json"):
-    abs_path = os.path.abspath(path)
-    print(f"[save] cwd={os.getcwd()}")
-    print(f"[save] writing to {abs_path}")
+def save_results_to_file(path):
+    absolute_path = os.path.abspath(path)
+    print(f"saving to {absolute_path}")
 
     pages = []
     for entry in printable_format_pages:
         for page_url, link_elements in entry.items():
             pages.append({
                 "url": page_url,
-                "links": [a.get("href") for a in link_elements],
+                "links": [link.get("href") for link in link_elements],
             })
 
     payload = {
@@ -124,9 +122,9 @@ def save_results_to_file(path="crawl_output.json"):
     try:
         with open(path, "w", encoding="utf-8") as f:
             json.dump(payload, f, ensure_ascii=False, indent=2)
-        print(f"[save] OK → {abs_path}")
+        print(f"Saved results to {abs_path}")
     except Exception as e:
-        print(f"[save] ERROR: {e!r}")
+        print(f"Failed to save results. ERROR: {e!r}")
 
 def print_crawl_results():
     print("Here is a list of all the sites within the subdomain https://crawlme.monzo.com/ "
