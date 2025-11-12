@@ -80,7 +80,7 @@ Run the following inside the docker container:
 
 - Developer experience: CLI improvements like --max-pages, --workers.
 
-- Tests: Integrations tests, unhappy path unit tests
+- Tests: More unit tests, integrations tests
 
 - Storage: An actual database would be nice :) 
 

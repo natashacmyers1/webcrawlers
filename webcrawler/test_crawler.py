@@ -133,7 +133,6 @@ def test_save_results_to_file_writes_json(tmp_path, monkeypatch):
     assert set(data["pages"][0]["links"]) == {"/a.html", "https://example.com/"}
 
 
-# ---------- tiny integration: one worker over a toy graph ----------
 
 def test_crawl_worker_enqueues_children_and_respects_max(monkeypatch):
     reset_globals()
@@ -150,7 +149,6 @@ def test_crawl_worker_enqueues_children_and_respects_max(monkeypatch):
 
     t = threading.Thread(target=crawler.crawl_worker, args=(2,), daemon=True)
     t.start()
-)
     crawler.urls_to_visit.join()
 
     t.join(timeout=1)

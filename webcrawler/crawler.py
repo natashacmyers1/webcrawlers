@@ -55,7 +55,7 @@ def get_thread_session() -> requests.Session:
         local_thread_storage.session = session 
     return local_thread_storage.session
 
-def load_robots_rules(url: str):
+def load_robots_rules(url: str) -> Optional[robotparser.RobotFileParser]: 
     parsed = urlparse(url)
     robots_url = f"{parsed.scheme}://{parsed.netloc}/robots.txt"
     rules = robotparser.RobotFileParser()
@@ -77,14 +77,14 @@ def is_allowed_by_robots(url: str) -> bool:
         return True
     return ROBOTS_RULES.can_fetch(REQUEST_USER_AGENT, url)
 
-def fetch_page_links(page_url: str):
+def fetch_page_links(page_url: str) -> list:
     session = get_thread_session()
     response = session.get(page_url, timeout=20)  
     response.raise_for_status() 
     soup = BeautifulSoup(response.text, "html.parser")
     return soup.select("a[href]")
 
-def wait():
+def wait() -> None:
     global last_request_time
     current_time = time.monotonic()
     time_since_last_request = current_time - last_request_time
@@ -99,7 +99,7 @@ def to_absolute_url(parent_url: str, href_value: str) -> str:
 def should_enqueue_url(url: str) -> bool:
     return url.startswith(START_URL) and (url not in urls_processed) and (url not in urls_discovered)
 
-def save_results_to_file(path):
+def save_results_to_file(path) -> None:
     absolute_path = os.path.abspath(path)
     print(f"saving to {absolute_path}")
 
@@ -122,11 +122,11 @@ def save_results_to_file(path):
     try:
         with open(path, "w", encoding="utf-8") as f:
             json.dump(payload, f, ensure_ascii=False, indent=2)
-        print(f"Saved results to {abs_path}")
+        print(f"Saved results to {absolute_path}")
     except Exception as e:
         print(f"Failed to save results. ERROR: {e!r}")
 
-def print_crawl_results():
+def print_crawl_results() -> None:
     print("Here is a list of all the sites within the subdomain https://crawlme.monzo.com/ "
           "along with the sites found on each page")
     for entry in printable_format_pages:
@@ -139,7 +139,7 @@ def print_crawl_results():
         for entry in failed_urls:
             print(f"  - {entry['url']}  ({entry['error']})")
 
-def crawl_worker(max_pages: Optional[int] = None):
+def crawl_worker(max_pages: Optional[int] = None) -> None:
     global pages_crawled
 
     while True:
@@ -201,7 +201,7 @@ def crawl_worker(max_pages: Optional[int] = None):
             urls_to_visit.task_done()
 
 
-def main(max_pages: int = None, worker_count: int = 3):
+def main(max_pages: int = None, worker_count: int = 3) -> None:
     worker_threads = []
     for i in range(worker_count):
         thread = threading.Thread(
