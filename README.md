@@ -62,6 +62,14 @@ To run the docker crawler in the container against https://crawlme.monzo.com and
 
 NB: if you want to run the crawler on a different site, simply update the site name in crawler.py
 
+### Worker_count and max_pages values
+
+This crawler has built in max pages and workers for testing purposes.
+
+If you wish to crawl a different number of pages or workers: you can change the values hard coded into __main__.py
+
+If you wish to crawl all the pages: max_pages is an optional value, the default is None, so can simply leave worker_count empty e.g. crawl_main(worker_count=3) 
+
 ### Running Tests
 
 Run the following inside the docker container:
